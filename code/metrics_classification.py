@@ -16,7 +16,7 @@ def _safe_divide(num: float, denom: float) -> float:
     Returns:
         float: num / denom when denom != 0, otherwise 0.0.
     """
-    return 0.0 if denom == 0 else num / denom
+    return 0.0 if denom == 0 else float(num / denom)
     # raise NotImplementedError("Implement _safe_divide.")
 
 
@@ -56,18 +56,18 @@ def _resolve_labels(labels, y_true_arr: np.ndarray, y_pred_arr: np.ndarray) -> l
         ValueError: If the final label list is empty.
     """
     if labels is not None:
-        return list(labels)
+        result = list(labels)
+        if not result:
+            raise ValueError("No labels found.")
+        return result
+    combined = np.concatenate([y_true_arr, y_pred_arr])
     unique_labels = []
-    for label in np.asarray(y_true_arr):
+    for label in combined:
         if label not in unique_labels:
             unique_labels.append(label)
-    for label in np.asarray(y_pred_arr):
-        if label not in unique_labels:
-            unique_labels.append(label)
-    if len(unique_labels) == 0:
+    if not unique_labels:
         raise ValueError("No labels found.")
     return unique_labels
-    # raise NotImplementedError("Implement _resolve_labels.")
 
 
 def confusion_matrix(
@@ -123,15 +123,12 @@ def accuracy_score(y_true, y_pred) -> float:
         >>> accuracy_score(["cat", "dog"], ["cat", "cat"])
         0.5
     """
-    n = len(y_true)
+    cm = confusion_matrix(y_true, y_pred)
+    n = cm.sum()
     if n == 0:
         return 0.0
-    correct = 0
-    for true, pred in zip(y_true, y_pred):
-        if true == pred:
-            correct += 1
-    return correct / n
-    # raise NotImplementedError("Implement accuracy_score.")
+    correct = np.trace(cm)
+    return _safe_divide(correct, n)
 
 
 def precision_score(y_true, y_pred, positive_label) -> float:
@@ -150,16 +147,12 @@ def precision_score(y_true, y_pred, positive_label) -> float:
         >>> precision_score(["cat", "dog"], ["cat", "cat"], positive_label="cat")
         0.5
     """
-    TP, FP, FN = 0, 0, 0
-    for true, pred in zip(y_true, y_pred):
-        if pred == positive_label and true == positive_label:
-            TP += 1
-        elif pred == positive_label and true != positive_label:
-            FP += 1
-        elif pred != positive_label and true == positive_label:
-            FN += 1
+    conf_matrix = confusion_matrix(y_true, y_pred)
+    labels = _resolve_labels(None, np.asarray(y_true).ravel(), np.asarray(y_pred).ravel())
+    pos_idx = labels.index(positive_label)
+    TP = conf_matrix[pos_idx, pos_idx]
+    FP = conf_matrix[:, pos_idx].sum() - TP
     return _safe_divide(TP, TP + FP)
-    # raise NotImplementedError("Implement precision_score.")
 
 
 def recall_score(y_true, y_pred, positive_label) -> float:
@@ -178,14 +171,11 @@ def recall_score(y_true, y_pred, positive_label) -> float:
         >>> recall_score(["cat", "cat"], ["cat", "dog"], positive_label="cat")
         0.5
     """
-    TP, FP, FN = 0, 0, 0
-    for true, pred in zip(y_true, y_pred):
-        if pred == positive_label and true == positive_label:
-            TP += 1
-        elif pred == positive_label and true != positive_label:
-            FP += 1
-        elif pred != positive_label and true == positive_label:
-            FN += 1
+    conf_matrix = confusion_matrix(y_true, y_pred)
+    labels = _resolve_labels(None, np.asarray(y_true).ravel(), np.asarray(y_pred).ravel())
+    pos_idx = labels.index(positive_label)
+    TP = conf_matrix[pos_idx, pos_idx]
+    FN = conf_matrix[pos_idx, :].sum() - TP
     return _safe_divide(TP, TP + FN)
     # raise NotImplementedError("Implement recall_score.")
 
@@ -230,8 +220,9 @@ def macro_f1_score(y_true, y_pred, labels) -> float:
         0.5
     """
     sum_f1 = 0.0
+    y_true_arr, y_pred_arr = _prepare_inputs(y_true, y_pred)
     for label in labels:
-        f1 = f1_score(y_true, y_pred, label)
+        f1 = f1_score(y_true_arr, y_pred_arr, label)
         sum_f1 += f1
     return _safe_divide(sum_f1, len(labels))
     # raise NotImplementedError("Implement macro_f1_score.")
@@ -253,17 +244,20 @@ def micro_f1_score(y_true, y_pred, labels) -> float:
         >>> micro_f1_score(["cat", "dog"], ["cat", "cat"], labels=["cat", "dog"])
         0.5
     """
-    TP, FP, FN = 0, 0, 0
-    for label in labels:
-        for true, pred in zip(y_true, y_pred):
-            if pred == label and true == label:
-                TP += 1
-            elif pred == label and true != label:
-                FP += 1
-            elif pred != label and true == label:
-                FN += 1
-    precision = _safe_divide(TP, TP + FP)
-    recall = _safe_divide(TP, TP + FN)
+    y_true_arr, y_pred_arr = _prepare_inputs(y_true, y_pred)
+    conf_matrix = confusion_matrix(y_true_arr, y_pred_arr, labels)
+    total_TP = 0
+    total_FP = 0
+    total_FN = 0
+    for i in range(len(labels)):
+        TP = conf_matrix[i, i]
+        FP = conf_matrix[:, i].sum() - TP
+        FN = conf_matrix[i, :].sum() - TP
+        total_TP += TP
+        total_FP += FP
+        total_FN += FN
+    precision = _safe_divide(total_TP, total_TP + total_FP)
+    recall = _safe_divide(total_TP, total_TP + total_FN)
     return _safe_divide(2 * precision * recall, precision + recall)
     # raise NotImplementedError("Implement micro_f1_score.")
 

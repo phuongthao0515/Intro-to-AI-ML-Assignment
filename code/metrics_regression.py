@@ -39,7 +39,9 @@ def mean_absolute_error(y_true, y_pred) -> float:
         float: Average absolute deviation between prediction and truth.
     """
     y_true_arr, y_pred_arr = _prepare_inputs(y_true, y_pred)
-    return np.mean(np.abs(y_true_arr - y_pred_arr))
+    if y_true_arr.shape[0] == 0:
+        return 0.0
+    return float(np.mean(np.abs(y_true_arr - y_pred_arr)))
     # raise NotImplementedError("Implement mean_absolute_error.")
 
 
@@ -55,7 +57,9 @@ def mean_squared_error(y_true, y_pred) -> float:
         float: Average squared deviation between prediction and truth.
     """
     y_true_arr, y_pred_arr = _prepare_inputs(y_true, y_pred)
-    return np.mean((y_true_arr - y_pred_arr) ** 2)
+    if y_true_arr.shape[0] == 0:
+        return 0.0
+    return float(np.mean((y_true_arr - y_pred_arr) ** 2))
     # raise NotImplementedError("Implement mean_squared_error.")
 
 
@@ -70,7 +74,7 @@ def root_mean_squared_error(y_true, y_pred) -> float:
     Returns:
         float: Square root of the mean squared error.
     """
-    return np.sqrt(mean_squared_error(y_true, y_pred))
+    return float(np.sqrt(mean_squared_error(y_true, y_pred)))
     # raise NotImplementedError("Implement root_mean_squared_error.")
 
 
@@ -86,11 +90,11 @@ def r2_score(y_true, y_pred) -> float:
         float: R² score, 1.0 for perfect predictions.
     """
     y_true_arr, y_pred_arr = _prepare_inputs(y_true, y_pred)
-    ss_total = np.sum((y_true_arr - np.mean(y_true_arr)) ** 2)
-    ss_residual = np.sum((y_true_arr - y_pred_arr) ** 2)
+    ss_total = float(np.sum((y_true_arr - np.mean(y_true_arr)) ** 2))
+    ss_residual = float(np.sum((y_true_arr - y_pred_arr) ** 2))
     if ss_total == 0:
         return 0.0
-    return 1 - (ss_residual / ss_total)
+    return float(1 - (ss_residual / ss_total))
     # raise NotImplementedError("Implement r2_score.")
 
 
