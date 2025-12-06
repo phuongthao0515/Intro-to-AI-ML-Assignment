@@ -50,9 +50,8 @@ class PolynomialTransformer:
             PolynomialTransformer: The fitted transformer (self).
         """
         X_array = self._validate_input(X)
-        n_features = X_array.shape[1]
-        self.n_features_in_ = n_features
-        self.combinations_ = self._generate_combinations(n_features)
+        self.n_features_in_ = X_array.shape[1]
+        self.combinations_ = self._generate_combinations(self.n_features_in_)
         return self
         # raise NotImplementedError("Implement PolynomialTransformer.fit.")
 
@@ -74,14 +73,16 @@ class PolynomialTransformer:
         if X_array.shape[1] != self.n_features_in_:
             raise ValueError("X has different number of features than during fit.")
         n_samples = X_array.shape[0]
-        columns = []
+        columns: List[np.ndarray] = []
         if self.include_bias:
-            columns.append(np.ones((X_array.shape[0], 1), dtype=float))
-        for combo in self.combinations_:
+            columns.append(np.ones((n_samples, 1), dtype=float))
+        for combination in self.combinations_:
             col = np.ones(n_samples)
-            for index in combo:
+            for index in combination:
                 col *= X_array[:, index]
             columns.append(col.reshape(-1, 1))
+        if not columns:
+            return np.empty((n_samples, 0), dtype=float)
         return np.hstack(columns)
         # raise NotImplementedError("Implement PolynomialTransformer.transform.")
 
@@ -96,10 +97,10 @@ class PolynomialTransformer:
         """
         Enumerate all index tuples representing monomials up to self.degree.
         """
-        combinations = []
+        combinations: List[Tuple[int, ...]] = []
         for degree in range(1, self.degree + 1):
-            combos = combinations_with_replacement(range(n_features), degree)
-            combinations.extend(combos)
+            combination = combinations_with_replacement(range(n_features), degree)
+            combinations.extend(combination)
         return combinations
         # raise NotImplementedError("Implement PolynomialTransformer._generate_combinations.")
 
@@ -115,7 +116,9 @@ class PolynomialTransformer:
             ValueError: If X cannot be reshaped into 2 dimensions.
         """
         X_array = np.asarray(X, dtype=float)
-        if X_array.ndim != 2:
+        if X_array.ndim == 1:
+            X_array = X_array.reshape(-1, 1)
+        elif X_array.ndim != 2:
             raise ValueError("Input X must be a 2-D array.")
         return X_array
         # raise NotImplementedError("Implement PolynomialTransformer._validate_input.")

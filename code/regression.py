@@ -21,13 +21,12 @@ def _ensure_column(vector) -> np.ndarray:
     Raises:
         ValueError: If the input cannot be coerced into a column vector.
     """
-    arr = np.asarray(vector)
+    arr = np.asarray(vector, dtype=float)
     if arr.ndim == 1:
         return arr.reshape(-1, 1)
     elif arr.ndim == 2 and arr.shape[1] == 1:
         return arr
-    else:
-        raise ValueError("Input cannot be coerced into a column vector.")
+    raise ValueError("Input must be 1D or 2D")
     # raise NotImplementedError("Implement _ensure_column.")
 
 
@@ -45,8 +44,7 @@ def _stack_features(*features) -> np.ndarray:
         ValueError: If feature vectors have different lengths.
     """
     columns = [_ensure_column(f) for f in features]
-    # Check all have the same length
-    if len(columns) > 0:
+    if columns:
         n = columns[0].shape[0]
         for col in columns[1:]:
             if col.shape[0] != n:
@@ -66,13 +64,9 @@ def polynomial_features(x, degree: int) -> np.ndarray:
     Returns:
         np.ndarray: Polynomial feature matrix including bias column.
     """
-    # 1. Use _ensure_column to create a column vector for x
     x_col = _ensure_column(x)
-    # 2. Construct a PolynomialTransformer with the desired degree and include_bias=True
     transformer = PolynomialTransformer(degree=degree, include_bias=True)
-    # 3. Fit the transformer on x and return transform(x)
-    transformer.fit(x_col)
-    return transformer.transform(x_col)
+    return transformer.fit_transform(x_col)
     # raise NotImplementedError("Implement polynomial_features.")
 
 
@@ -96,11 +90,8 @@ def fit_polynomial_regression(
     Returns:
         np.ndarray: Learned weights (including bias).
     """
-    # 1. Build features with polynomial_features
     X_poly = polynomial_features(x, degree)
-    # 2. Instantiate a LinearRegression with fit_intercept=False (bias already in feature matrix)
     model = LinearRegression(fit_intercept=False)
-    # 3. Fit the model to (X_poly, y) and return the learned weight vector
     model.fit(X_poly, y)
     return model.coef_
     # raise NotImplementedError("Implement fit_polynomial_regression.")
@@ -120,11 +111,14 @@ def predict_polynomial(
     Returns:
         np.ndarray: Predicted responses.
     """
-    weights = np.asarray(weights)
+    weights = np.asarray(weights, dtype=float).ravel()
+    x_arr = np.asarray(x, dtype=float).ravel()
+    if len(weights) == 0:
+        return np.zeros_like(x_arr)
     degree = len(weights) - 1
     X_poly = polynomial_features(x, degree)
-    return X_poly @ weights
-    raise NotImplementedError("Implement predict_polynomial.")
+    return (X_poly @ weights).ravel()
+    # raise NotImplementedError("Implement predict_polynomial.")
 
 
 def fit_surface_regression(
@@ -147,12 +141,9 @@ def fit_surface_regression(
     Returns:
         np.ndarray: Learned weight vector.
     """
-    x1 = _ensure_column(x1)
-    x2 = _ensure_column(x2)
-    X1_squared = x1 ** 2
-    X2_squared = x2 ** 2
-    X1_X2 = x1 * x2
-    X_design = _stack_features(np.ones(x1.shape[0]), x1, x2, X1_squared, X1_X2, X2_squared)
+    X = _stack_features(x1, x2)
+    polynomial_transformer = PolynomialTransformer(degree=2, include_bias=True)
+    X_design = polynomial_transformer.fit_transform(X)
     model = LinearRegression(fit_intercept=False)
     model.fit(X_design, y)
     return model.coef_
@@ -175,13 +166,12 @@ def predict_surface(
     Returns:
         np.ndarray: Predicted responses.
     """
-    weights = np.asarray(weights)
-    x1 = _ensure_column(x1)
-    x2 = _ensure_column(x2)
-    X1_squared = x1 ** 2
-    X2_squared = x2 ** 2
-    X1_X2 = x1 * x2
-    X_design = _stack_features(np.ones(x1.shape[0]), x1, x2, X1_squared, X1_X2, X2_squared)
-    return X_design @ weights
+    weights = np.asarray(weights, dtype=float).ravel()
+    X = _stack_features(x1, x2)
+    if len(weights) == 0:
+        return np.zeros(X.shape[0])
+    transformer = PolynomialTransformer(degree=2, include_bias=True)
+    X_design = transformer.fit_transform(X)
+    return (X_design @ weights).ravel()
     # raise NotImplementedError("Implement predict_surface.")
 

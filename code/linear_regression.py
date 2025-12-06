@@ -8,7 +8,7 @@ import numpy as np
 class LinearRegression:
     def __init__(self, fit_intercept: bool = True, reg_strength: float = 0.0) -> None:
         """
-        Closed-form linear regression solver with optional L2 regularisation.
+        Closed-form linear regression solver with optional L2 regularization.
 
         Args:
             fit_intercept (bool): Whether to augment X with a bias column.
@@ -37,18 +37,21 @@ class LinearRegression:
             ValueError: If X and y have different numbers of samples.
         """
         X_array = self._ensure_2d(X)
-        y = np.asarray(y).reshape(-1,1)
-        if X_array.shape[0] != y.shape[0]:
+        y_array = np.asarray(y, dtype=float).reshape(-1,1)
+        if X_array.shape[0] != y_array.shape[0]:
             raise ValueError("X and y must have the same number of samples.")
         if self.fit_intercept:
             X_array = self._augment_features(X_array)
         XTX = X_array.T @ X_array
-        XTy = X_array.T @ y
+        XTy = X_array.T @ y_array
         n_columns = XTX.shape[0]
         reg_matrix = self.reg_strength * np.eye(n_columns)
         if self.fit_intercept:
             reg_matrix[0, 0] = 0.0
-        weights = np.linalg.solve(XTX + reg_matrix, XTy)
+        try:
+            weights = np.linalg.solve(XTX + reg_matrix, XTy)
+        except np.linalg.LinAlgError:
+            weights = np.linalg.pinv(XTX + reg_matrix) @ XTy
         if self.fit_intercept:
             self.intercept_ = weights[0, 0]
             self.coef_ = weights[1:, 0]
@@ -81,8 +84,11 @@ class LinearRegression:
         """
         Optionally prepend a bias column to X.
         """
+        X = self._ensure_2d(X)
+        if not self.fit_intercept:
+            return X
         return np.hstack((np.ones((X.shape[0], 1), dtype=float), X))
-        raise NotImplementedError("Implement LinearRegression._augment_features.")
+        # raise NotImplementedError("Implement LinearRegression._augment_features.")
 
     @staticmethod
     def _ensure_2d(X: np.ndarray) -> np.ndarray:
@@ -92,6 +98,8 @@ class LinearRegression:
         X_array = np.asarray(X, dtype=float)
         if X_array.ndim == 1:
             X_array = X_array.reshape(-1, 1)
+        elif X_array.ndim != 2:
+            raise ValueError("Input array must be 1D or 2D.")
         return X_array
         raise NotImplementedError("Implement LinearRegression._ensure_2d.")
 
